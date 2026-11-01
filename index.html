@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FlowPilot AI | Inquiry Workflow Assistant</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="brand-icon">↗</span><div><strong>FlowPilot AI</strong><small>Inquiry workflow assistant</small></div></div>
+  <a class="button button-light" href="{{ url_for('export') }}">Export CSV ↓</a>
+</header>
+<main class="container">
+  <section class="hero">
+    <div><p class="eyebrow">BUSINESS OPERATIONS · AUTOMATION</p><h1>Turn inquiries into<br><span>clear next steps.</span></h1>
+    <p class="hero-copy">Organize incoming requests, prioritize urgent work, and prepare response drafts in one simple workspace.</p></div>
+    <div class="hero-mark" aria-hidden="true">✳</div>
+  </section>
+  <div class="notice">Demo mode: uses fictional inquiries. Classification is rule-based; optional Groq AI drafts require your own API key. Always review drafts before sending.</div>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}{% for category, message in messages %}<div class="flash {{ category }}">{{ message }}</div>{% endfor %}{% endif %}
+  {% endwith %}
+  <section class="stats">
+    <article class="stat"><span>Total inquiries</span><strong>{{ stats.total }}</strong><small>All records in this session</small></article>
+    <article class="stat"><span>High priority</span><strong>{{ stats.high }}</strong><small>Needs attention first</small></article>
+    <article class="stat"><span>New items</span><strong>{{ stats.new }}</strong><small>Not yet resolved</small></article>
+    <article class="stat"><span>Categories</span><strong>{{ stats.categories }}</strong><small>Types detected</small></article>
+  </section>
+  <section class="grid">
+    <article class="panel">
+      <div class="panel-heading"><div><p class="eyebrow">QUICK ACTION</p><h2>Add an inquiry</h2></div><span class="step">01</span></div>
+      <form action="{{ url_for('add') }}" method="post" class="stack">
+        <label>Contact name<input name="name" placeholder="e.g. Priya Sharma" required></label>
+        <label>Email (optional)<input name="email" type="email" placeholder="name@example.com"></label>
+        <label>Inquiry message<textarea name="message" rows="4" placeholder="Describe what the person needs..." required></textarea></label>
+        <button class="button button-primary" type="submit">Analyze inquiry <span>→</span></button>
+      </form>
+    </article>
+    <article class="panel">
+      <div class="panel-heading"><div><p class="eyebrow">BULK WORKFLOW</p><h2>Import inquiries</h2></div><span class="step">02</span></div>
+      <p class="muted">Upload a CSV with a <code>name</code> and <code>message</code> column. Optional columns: <code>email</code>, <code>inquiry</code>, or <code>query</code>.</p>
+      <form action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data" class="stack upload-box">
+        <label>Choose CSV file<input type="file" name="file" accept=".csv" required></label>
+        <button class="button button-secondary" type="submit">Import & categorize</button>
+      </form>
+      <div class="tip"><strong>What happens?</strong><p>Empty rows and matching name/message duplicates are skipped. Each accepted inquiry gets a category, priority, and suggested next action.</p></div>
+    </article>
+  </section>
+  <section class="panel records-panel">
+    <div class="panel-heading records-heading"><div><p class="eyebrow">WORK QUEUE</p><h2>Inquiry board <span class="count">{{ inquiries|length }}</span></h2></div></div>
+    <form method="get" class="filters">
+      <input name="q" value="{{ q }}" placeholder="Search name, email or message…">
+      <select name="priority"><option value="">All priorities</option>{% for p in priorities %}<option value="{{ p }}" {% if selected_priority == p %}selected{% endif %}>{{ p }} priority</option>{% endfor %}</select>
+      <select name="category"><option value="">All categories</option>{% for c in categories %}<option value="{{ c }}" {% if selected_category == c %}selected{% endif %}>{{ c }}</option>{% endfor %}</select>
+      <button class="button button-secondary" type="submit">Filter</button>
+      <a class="clear-link" href="{{ url_for('index') }}">Reset</a>
+    </form>
+    <div class="table-wrap"><table><thead><tr><th>Contact / message</th><th>Category</th><th>Priority</th><th>Status</th><th>Suggested next step</th><th>Actions</th></tr></thead>
+      <tbody>
+      {% for item in inquiries %}
+      <tr>
+        <td class="contact-cell"><strong>{{ item.name }}</strong><small>{{ item.email or 'No email provided' }}</small><p>{{ item.message }}</p></td>
+        <td><span class="category">{{ item.category }}</span></td>
+        <td><span class="priority {{ item.priority|lower }}">{{ item.priority }}</span></td>
+        <td><form action="{{ url_for('update_status', inquiry_id=item.id) }}" method="post" class="inline-form"><select name="status" aria-label="Status" onchange="this.form.submit()">{% for s in ['New','In Progress','Resolved'] %}<option value="{{ s }}" {% if item.status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></form></td>
+        <td>{{ item.next_action }}</td>
+        <td class="actions"><form action="{{ url_for('draft', inquiry_id=item.id) }}" method="post"><button class="text-button" type="submit">✦ Draft reply</button></form>{% if item.reply %}<details><summary>View draft</summary><pre>{{ item.reply }}</pre><button type="button" class="text-button" onclick="navigator.clipboard.writeText(this.parentElement.querySelector('pre').innerText).then(()=>this.innerText='Copied!')">Copy draft</button></details>{% endif %}</td>
+      </tr>
+      {% else %}<tr><td colspan="6" class="empty">No inquiries match these filters.</td></tr>{% endfor %}
+      </tbody>
+    </table></div>
+  </section>
+  <footer><span>FlowPilot AI · Portfolio prototype</span><span>Human review required · No messages are sent automatically</span></footer>
+</main>
+</body>
+</html>
